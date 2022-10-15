@@ -1,6 +1,6 @@
 
 # set current directory
-pwd = r"C:\Users\hobbs\Documents\Projects\Travel Videos\auto-gen-videos"
+pwd = r"C:\Users\hobbs\Documents\Programming\Projects\Travel Videos\auto-gen-videos"
 import os
 os.chdir(pwd)
 
