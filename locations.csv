@@ -1,7 +1,7 @@
 City,Region,Location,Scraped,To Scrape,Scrape Error,Notes,Imaged,To Image,Image Error,Enhanced,To Enhance,Enhance Error,Videod,To Video,Video Error,Helper URL
 ,,Canada,yes,yes,,,yes,yes,,yes,yes,,,,,
 ,,"Alberta, Canada",yes,yes,,,yes,yes,,yes,yes,,,,,
-,,"British Columbia, Canada",yes,yes,,,yes,yes,,yes,yes,,,yes,,https://www.tripadvisor.ca/Attractions-g154922-Activities-a_allAttractions.true-British_Columbia.html
+,,"British Columbia, Canada",yes,yes,,,yes,yes,,yes,yes,,yes,yes,,https://www.tripadvisor.ca/Attractions-g154922-Activities-a_allAttractions.true-British_Columbia.html
 ,,"Manitoba, Canada",yes,yes,,,yes,yes,,yes,yes,,,,,
 ,,"New Brunswick, Canada",yes,yes,,,,,,,,,,,,https://www.tripadvisor.com/Attractions-g154956-Activities-a_allAttractions.true-New_Brunswick.html
 ,,"Newfoundland and Labrador, Canada",yes,yes,,,,,,,,,,,,https://www.tripadvisor.com/Attractions-g154962-Activities-a_allAttractions.true-Newfoundland_and_Labrador.html
