@@ -1,62 +1,125 @@
 import moviepy.editor as mpy
 import random
-from pathlib import Path
-from PIL import Image, ImageFont, ImageDraw
 import os
 import hashlib
+from pathlib import Path
+from PIL import Image, ImageFont, ImageDraw
 from tqdm import tqdm
 
 
 class Video():
+    """Generate a video from a list of images."""
 
     def __init__(self, image_paths, output_dir, audio_dir, resolution='4K',
                  fps=60, dur=6, delay=1, location=None, seed=None):
+        """
+        Parameters
+        ----------
+        image_paths : list
+            list of image paths.
+        output_dir : str
+            the directory to save the video, thumbnails, and text to.
+        audio_dir : str
+            the directory to load the audio from.
+        resolution : str or tuple
+            the resolution of the video.
+            'min', 'max', 'HD', 'FHD', 'QHD', '4K', or (width, height).
+                'min' takes the smallest resolution of the images.
+                'max' takes the largest resolution of the images.
+                'HD' is 1366 x 768.
+                'FHD' is 1920 x 1080.
+                'QHD' is 2560 x 1440.
+                '4K' is 3840 x 2160.
+                (width, height) is a custom resolution.
+        fps : int
+            frames per second.
+        dur : int
+            duration of each clip in seconds.
+        delay : int
+            delay before text comes in on each clip.
+        location : str
+            the location of the images (e.g. 'New York City')
+        seed : int
+            seed for random number generator.
+        """
+
         self.image_paths = image_paths
         self.output_dir = output_dir  # video output directory
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        self.audio_dir = audio_dir
+        self.fps = fps
         self.dur = dur  # clip duration (seconds)
-        self.last_clip_dur = 16
+        self.last_clip_dur = 16  # duration of last clip (seconds)
         self.delay = delay  # delay before text comes in on each clip
         if location is None:
             self.location = Path(image_paths[0]).parent.parent.name
         else:
             self.location = location
-        self.fps = fps
         self.possible_animations = ['zoom-in', 'zoom-out', 'pan-right', 'pan-left']
+        self.thumbnails_dir = 'thumbnails'
+
         # set video resolution
         self.resolution = resolution
         self.w, self.h = self.get_resolution(resolution)
         print(f"resolution - {resolution}: {self.w} x {self.h}")
+
         # set seed based on location for reproducibility
         if seed is None:
             seed = hashlib.sha512(self.location.encode('cp1252')).hexdigest()
             seed = int(seed, 16) % (10**6)
         random.seed(seed)
-        self.audio_dir = audio_dir
-        self.thumbnails_dir = 'thumbnails'
+
+        # create output directory if it doesn't exist
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
     def get_resolution(self, resolution=None):
-        """set ouput video resolution"""
+        """
+        Set ouput video resolution.
+
+        Parameters
+        ----------
+        resolution : str or tuple
+            the resolution of the video.
+            'min', 'max', 'HD', 'FHD', 'QHD', '4K', or (width, height).
+                'min' takes the smallest resolution of the images.
+                'max' takes the largest resolution of the images.
+                'HD' is 1366 x 768.
+                'FHD' is 1920 x 1080.
+                'QHD' is 2560 x 1440.
+                '4K' is 3840 x 2160.
+                (width, height) is a custom resolution.
+        """
+
+        # use default resolution if none is provided
         if resolution is None:
             resolution = self.resolution
+
+        # ensure resolution is valid
         possible_res = ['min', 'max', 'HD', 'FHD', 'QHD', '4K']
         assert resolution in possible_res or \
             (type(resolution) == tuple and len(resolution) == 2), "invalid resolution"
+
+        # shrink to minimum image size, adjusted to 16:9 ratio
         if resolution == 'min':
             w_ = min([mpy.ImageClip(p).w for p in self.image_paths])  # minimum width
             h_ = min([mpy.ImageClip(p).h for p in self.image_paths])  # minimum Height
             # shrink to 16:9 ratio, images will conform to this width and height
             w = min(w_, int(h_ * 16 / 9))
             h = min(h_, int(w_ * 9 / 16))
+
+        # expand to maximum image size, adjusted to 16:9 ratio
         elif resolution == 'max':
             w_ = max([mpy.ImageClip(p).w for p in self.image_paths])  # maximum width
             h_ = max([mpy.ImageClip(p).h for p in self.image_paths])  # maximum Height
             # expand to 16:9 ratio, images will conform to this width and height
             w = max(w_, int(h_ * 16 / 9))
             h = max(h_, int(w_ * 9 / 16))
+
+        # use custom resolution
         elif type(resolution) == tuple and len(resolution) == 2:
             w, h = resolution
+
+        # use preset resolution
         elif resolution == 'HD':
             w, h = 1366, 768
         elif resolution == 'FHD':
@@ -84,38 +147,46 @@ class Video():
 
         Parameters
         -----------
-
-        t
+        t : float
             Time, in seconds, from the start of the clip.
 
-        h
+        h : int
             Height of the image/video in pixels that the text with overlay.
             Not used if relative=False
 
-        w
+        w : int
             Height of the image/video in pixels that the text with overlay.
 
-        h_pos
-            Horizonatal position that the text stops.
+        h_pos : float
+            Horizonatal position that the text stops. 0.0 is the left side of
+            the image/video, 1.0 is the right side of the image/video.
 
-        v_pos
-            Vertial position that the text maintains before moving down.
+        v_pos : float
+            Vertial position that the text maintains before moving down. 0.0 is
+            the top of the image/video, 1.0 is the bottom of the image/video.
 
-        h_speed
+        h_speed : float
             Speed at which the text moves left (number of screens per second).
 
-        v_speed
+        v_speed : float
             Speed at which text moves down (number of screens per second).
 
-        v_time
+        v_time : float
             Time until text starts moving down, in seconds, from the start of
             the TextClip.
 
-        relative
+        relative : bool
             ``True`` (default) if you want h_pos, v_pos, h_speed, and v_speed
             to be relative to the size of the image/video that the text is on
             top of (i.e. relative to h and w), rather than based on number of
             pixels.
+
+        Returns
+        -------
+        x : float
+            Horizontal position of the text at time t.
+        y : float
+            Vertical position of the text at time t.
 
         Formula derivation
         -----------
@@ -136,11 +207,11 @@ class Video():
         """
         w, h = self.w, self.h
 
+        # scale positions and speeds so that they're relative to the size
+        # of the image/video the text is composed with
         if relative:
             assert h is not None and w is not None, \
                 'Must provide non-None values of h and w if relative=True'
-            # scale positions and speeds so that they're relative to the size
-            # of the image/video the text is composed with
             h_pos *= w
             v_pos *= h
             h_speed *= w
@@ -157,23 +228,26 @@ class Video():
 
         Parameters
         -----------
-
-        image_clip
+        image_clip : ImageClip
             An ImageClip object.
-
-        aspect_ratio
+        aspect_ratio : float
             The desired aspect ratio of the returned ImageClip.
-
-        allow_slight_stretching
+        allow_slight_stretching : bool
             If ``True``, then stretch towards the desired aspect ratio (up to
             max_stretch), before cropping if the desired aspect ratio is still
             not achieved.
-
-        max_stretch
+        max_stretch : float
             The max rate the image can be stretched (e.g. 1.2 means one
             dimension can be stretched by at most a factor of 1.2)
+
+        Returns
+        -------
+        ImageClip
+            A new ImageClip object with the desired aspect ratio.
         """
+
         w, h = image_clip.w, image_clip.h
+
         # if allowed, first stretch the image to be closer to the desired aspect ratio
         if allow_slight_stretching:
             if w / h > aspect_ratio * max_stretch:  # very wide image
@@ -190,6 +264,7 @@ class Video():
                 new_w = h * aspect_ratio
             image_clip = image_clip.resize((new_w, new_h))
             w, h = new_w, new_h
+
         # crop image
         new_w = min(w, int(h * aspect_ratio))
         new_h = min(h, int(w / aspect_ratio))
@@ -208,13 +283,12 @@ class Video():
 
         Parameters
         -----------
-
-        w
+        w : float
             width of the image.
-
-        h
+        h : float
             height of the image.
         """
+
         if w / h > 16 / 9:  # wide image
             animation = random.choice(['pan-right', 'pan-left'])
         else:
@@ -231,41 +305,48 @@ class Video():
 
         Parameters
         -----------
-
-        image_clip
+        image_clip : ImageClip
             An ImageClip object.
-
-        animation
+        animation : str
             A string representing the animation to apply. Valid values include
             'zoom-in', 'zoom-out', 'pan-right', 'pan-left', or 'random'. If
             'random', then a random animation is picked.
-
-        scroll_dist
+        scroll_dist : float
             The scroll/pan distance (relative to the image width) for panning
             animations.
         """
+
         w, h, dur = self.w, self.h, self.dur
         s = scroll_dist
 
+        # pick an animation randomly
         if animation == 'random':
             animation = random.choice(self.possible_animations)
+
+        # check that animation is valid
         assert animation in self.possible_animations, \
             f"animation must be in {self.possible_animations}, not {animation}"
 
-        # resize image to prep for animation
-        if animation[:3] == 'pan':  # prep for horizontal pan effect on wide images
+        # resize image to prep for horizontal pan animation on wide images
+        if animation[:3] == 'pan':
+
             # crop image to modified aspect ratio
-            aspect_corr = 1 / (1 - s)  # correct aspect ratio for pan animation
+            aspect_corr = 1 / (1 - s)  # aspect ratio correction factor for pan animation
             image_clip = self.crop_to_aspect(image_clip,
                                              aspect_ratio=aspect_corr*16/9,
                                              allow_slight_stretching=True)
+
             # scale image to same size as other images (plus correction factor)
             image_clip = image_clip.resize((aspect_corr*w, h))
-        else:  # prep for zoom effect on tall images
+
+        # resize image to prep for zoom animation
+        else:
+
             # crop image to 16:9 aspect ratio
             image_clip = self.crop_to_aspect(image_clip,
                                              aspect_ratio=16/9,
                                              allow_slight_stretching=True)
+
             # scale image to same size as other images (usually 16:9 aspect ratio)
             image_clip = image_clip.resize((w, h))
 
@@ -299,11 +380,9 @@ class Video():
 
         Parameters
         -----------
-
-        image_path
+        image_path : str
             path to an image file to be used to generate the ImageClip.
-
-        last_clip
+        last_clip : bool
             if ``True``, use custom edits intended for the last clip in the
             video. Specifically, use a longer clip duration and include an
             animated subscribe button.
@@ -311,13 +390,16 @@ class Video():
 
         # use custom edits for the last clip
         if last_clip:
+
+            # set clip duration and animation
             dur = self.last_clip_dur  # longer duration
             animation = 'zoom-in'  # zoom-in animation
+
             # make masked subscribe animation overlay
             subscribe_path = 'subscribe.mp4'
             sub_clip = mpy.VideoFileClip(subscribe_path).set_duration(5).set_start(7)
-            # RGB of green screen (15, 209, 0) determined in MS paint
             sub_clip = sub_clip.fx(mpy.vfx.mask_color, color=[15, 209, 0], thr=125, s=30)
+
             # crop off border
             w, h = sub_clip.w, sub_clip.h
             new_w, new_h = int(0.9 * w), int(0.9 * h)
@@ -326,36 +408,59 @@ class Video():
             y1 = int((h - new_h) / 2)
             y2 = h - y1
             sub_clip = sub_clip.crop(x1=x1, y1=y1, x2=x2, y2=y2)
+
             # resize to same as video, then shrink and put in bottom right corner
             sub_clip = sub_clip.resize((self.w, self.h))
             sub_clip = sub_clip.resize(0.25).set_pos(('right', 'bottom'))
+
             # add short fade in and out
             sub_clip = sub_clip.crossfadein(0.25).crossfadeout(0.25)
+
+        # use default edits for all other clips
         else:
+            # set clip duration and animation
             dur = self.dur
             animation = 'random'
+
         # Make clip from image
         image_clip = mpy.ImageClip(image_path, duration=dur)
+
         # pick random animation (pick before crop since we crop less if panning)
         if animation == 'random':
             animation = self.pick_animation(image_clip.w, image_clip.h)
+
         # Animate image -- either zoom in, zoom out, pan right, or pan left
         image_clip = self.add_animation(image_clip, animation=animation)
+
         # Add crossfade transitions
         image_clip = image_clip.crossfadein(1).crossfadeout(1)
+
         # add subscribe animation if it's the last clip
         if last_clip:
             image_clip = mpy.CompositeVideoClip([image_clip, sub_clip])
         return image_clip
 
     def process_text(self, text):
+        """
+        Generate an edited TextClip based on a string of text.
+
+        Parameters
+        -----------
+        text : str
+            text to be used to generate the TextClip.
+        """
+
+        # get clip parameters
         w, h, dur, delay = self.w, self.h, self.dur, self.delay
+
         # Make clip from text
         text_clip = mpy.TextClip(txt=text, fontsize=0.067*h, font='Amiri-regular',
                                  color='white')
+
         # Add box around text
         text_clip = text_clip.on_color(size=(w, int(1.2*text_clip.h)), color=(0, 0, 0),
                                        pos=(0.025*w, 'center'), col_opacity=0.6)
+
         # Animate text clip
         text_clip = text_clip.set_duration(dur-delay).set_start(delay)
         text_clip = text_clip.set_position(lambda t: self.slide_left(t, h, w, h_pos=0.03,
@@ -366,26 +471,42 @@ class Video():
     def gen_clip(self, image_path, text, last_clip=False):
         """
         Make an animated clip out of an image and text.
+
+        Parameters
+        -----------
+        image_path : str
+            path to an image file to be used to generate the ImageClip.
+        text : str
+            text to be used to generate the TextClip.
+        last_clip : bool
+            if ``True``, use custom edits intended for the last clip in the
+            video. Specifically, use a longer clip duration and include an
+            animated subscribe button.
         """
+
         # Make & process ImageClip
         image_clip = self.process_image(image_path, last_clip)
+
         # Make & process TextClip
         text_clip = self.process_text(text)
+
         # Overlay the TextClip onto ImageClip
         clip = mpy.CompositeVideoClip([image_clip, text_clip])
         return clip
 
     def gen_video(self):
+        """Generate a video from a list of image paths."""
+
         # generate clips
         clips = []
-        for i in range(len(self.image_paths)):
-            path = self.image_paths[i]
+        for i, path in enumerate(self.image_paths):
             attraction = '.'.join(Path(path).name.split('.')[:-1])
             clip_text = f"{i+1}. {attraction}"
             last_clip = (i == 0)  # last clip (after the order is reversed)
             clip = self.gen_clip(path, clip_text, last_clip)
             clips.append(clip)
         clips.reverse()
+
         # combine clips and audio
         video = mpy.concatenate_videoclips(clips, method='compose', padding=-1)
         audio_path = self.get_audio()  # get random song
@@ -394,17 +515,35 @@ class Video():
         audio = audio.audio_fadein(1).audio_fadeout(2)
         combined_audio = mpy.CompositeAudioClip([video.audio, audio])
         video = video.set_audio(combined_audio)
+
         # render video
         output_path = f"{self.output_dir}\\{self.location}.mp4"
         video.write_videofile(output_path, fps=self.fps, threads=6, codec='mpeg4')
 
     def gen_thumbnail(self, input_path=None, output_path=None, title=None,
                       resolution=None):
+        """
+        Generate a thumbnail image from an image file.
+
+        Parameters
+        -----------
+        input_path : str
+            path to an image file to be used to generate the thumbnail.
+        output_path : str
+            path to save the thumbnail image.
+        title : str
+            title to be used in the thumbnail.
+        resolution : tuple
+            resolution of the thumbnail image.
+        """
+
         # get path to image
         if input_path is None:
             input_path = random.choice(self.image_paths)
+
         # open image
         img = Image.open(input_path)
+
         # crop to 16:9 aspect ratio
         w, h = img.size
         new_w = min(w, int(h * 16 / 9))
@@ -414,18 +553,22 @@ class Video():
         y1 = int((h - new_h) / 2)
         y2 = h - y1
         img = img.crop((x1, y1, x2, y2))
-        # set sizes (for clearer text)
+
+        # set sizes (so text is more clearly visible)
         if resolution is None:
             resolution = self.resolution
         new_w, new_h = self.get_resolution(resolution)
         img = img.resize((new_w, new_h))
+
         # make image editable
         draw = ImageDraw.Draw(img)
+
         # set up font
         font_size = int(0.25 * new_h)
         stroke_width = max(2, int(font_size / 100))
         font_type = 'arialbd.ttf'
         font = ImageFont.truetype(font_type, font_size)
+
         # add text line 1 (e.g. "TOP 10") to image (centered horizontally, above middle)
         txt = f"TOP {len(self.image_paths)}"
         w, h = draw.textsize(txt, font=font)  # size of text
@@ -433,6 +576,7 @@ class Video():
         y = int(0.45 * new_h - h)
         draw.text((x, y), txt, (237, 230, 211), font=font, stroke_width=stroke_width,
                   stroke_fill="black")
+
         # add text line 2 (e.g. "TORONTO") to image (centered horizontally, below middle)
         txt = f"{self.location.split(',')[0].upper()}" if title is None else title
         w, h = draw.textsize(txt, font=font)
@@ -445,6 +589,7 @@ class Video():
         y = int(0.52 * new_h)
         draw.text((x, y), txt, (237, 230, 211), font=font, stroke_width=stroke_width,
                   stroke_fill="black")
+
         # save image
         if output_path is None:
             attraction = '.'.join(Path(input_path).name.split('.')[:-1])
@@ -453,6 +598,20 @@ class Video():
         # print(f"saved thumbnail to {output_path}")
 
     def gen_thumbnails(self, title=None, resolution=None, sub_dir=None):
+        """
+        Generate thumbnails for all images in the image directory.
+
+        Parameters
+        -----------
+        title : str
+            title to be used in the thumbnail.
+        resolution : tuple
+            resolution of the thumbnail image.
+        sub_dir : str
+            subdirectory to save the thumbnails in.
+        """
+
+        # create output directory
         output_dir = f"{self.output_dir}\\{self.thumbnails_dir}"
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -460,25 +619,28 @@ class Video():
             output_dir = f"{self.output_dir}\\{self.thumbnails_dir}\\{sub_dir}"
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+
+        # generate thumbnails
         if resolution is None:
             resolution = self.resolution
         print(f"generating {resolution} thumbnails for {self.location}")
-        for i in tqdm(range(len(self.image_paths))):
-            input_path = self.image_paths[i]
+        for input_path in tqdm(self.image_paths):
+            # remove file extension from image name
             attraction = '.'.join(Path(input_path).name.split('.')[:-1])
             output_path = f"{output_dir}\\{attraction}.png"
             self.gen_thumbnail(input_path=input_path, output_path=output_path,
                                title=title, resolution=resolution)
 
     def document(self):
-        """
-        generates a txt file that with the video title and description
-        """
+        """Generate a txt file with the video title and description."""
+
+        # set title and description
         output_path = f"{self.output_dir}\\description.txt"
         count, location = len(self.image_paths), self.location.split(',')[0].upper()
         title = f"Top {count} Things to do in {location}"
         description = f"In this video, we'll show you the top {count} things that you have to do when you're in {self.location}!\n\n\n\nMusic from www.bensound.com"
         text = f"Title:\n{title}\n\nDescription:\n{description}"
+
         # write text to file
         with open(output_path, 'w') as file:
             file.write(text)
