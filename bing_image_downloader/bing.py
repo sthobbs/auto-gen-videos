@@ -14,8 +14,32 @@ Modified by: Steve Hobbs (github.com/sthobbs)
 
 
 class Bing:
+    """Bing image downloader class."""
+
     def __init__(self, query, limit, output_dir, adult, timeout, filters='',
                  query_folder=True, extra_query=''):
+        """
+        Parameters
+        ----------
+        query : str
+            the query to search for.
+        limit : int
+            the number of images to download.
+        output_dir : str
+            the directory to save the images to.
+        adult : bool
+            whether to include adult images.
+        timeout : int
+            the timeout for the request.
+        filters : str
+            the filters to apply to the search.
+        query_folder : bool
+            whether to put the images in a folder named after the query.
+        extra_query : str
+            extra query to append to the search that don't impact
+            the output file name.
+        """
+
         self.query = query
         self.limit = limit
         self.output_dir = output_dir
@@ -38,6 +62,17 @@ class Bing:
         assert type(timeout) == int, "timeout must be integer"
 
     def save_image(self, link, file_path):
+        """
+        Saves the image from the link to the file_path.
+
+        Parameters
+        ----------
+        link : str
+            the link to the image
+        file_path : str
+            the path to save the image to
+        """
+
         request = urllib.request.Request(link, None, self.headers)
         image = urllib.request.urlopen(request, timeout=self.timeout).read()
         if not imghdr.what(None, image):
@@ -47,6 +82,15 @@ class Bing:
             f.write(image)
 
     def download_image(self, link):
+        """
+        Downloads the image from the link.
+
+        Parameters
+        ----------
+        link : str
+            the link to the image
+        """
+
         self.download_count += 1
 
         # Get the image link
@@ -75,6 +119,8 @@ class Bing:
             print(f"[!] Issue getting: {link}\n[!] Error:: {e}")
 
     def run(self):
+        """Runs the Bing image downloader."""
+
         while self.download_count < self.limit and self.page_counter < 2:
             time.sleep(1)  # Sleep for 1 second
             print(f'\n\n[!!]Indexing page: {self.page_counter}\n')
